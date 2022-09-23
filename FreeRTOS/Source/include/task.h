@@ -12,11 +12,14 @@ void xPortSysTickHandler( void );
 
 typedef struct {
 	StackType_t* stackTop;
+	ListItem_t ListItem;
+	TickType_t xTicksToDelay;
 }TCB_t;
 
 
 #define taskYIELD()			portYIELD()
 
+extern List_t ReadyList[ configMAX_PRIORITIES ];
 
 void createTask( TCB_t * const pxTCB 
 							, StackType_t * const StackBottom 

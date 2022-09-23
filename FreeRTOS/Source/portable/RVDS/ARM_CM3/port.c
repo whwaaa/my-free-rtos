@@ -19,6 +19,23 @@
 #define portNVIC_SYSTICK_PRI				( ( ( uint32_t ) configKERNEL_INTERRUPT_PRIORITY ) << 24UL )
 
 
+/* SysTick 配置寄存器 */
+#define portNVIC_SYSTICK_CTRL_REG			( * ( ( volatile uint32_t * ) 0xe000e010 ) )
+#define portNVIC_SYSTICK_LOAD_REG			( * ( ( volatile uint32_t * ) 0xe000e014 ) )
+
+#ifndef configSYSTICK_CLOCK_HZ
+	#define configSYSTICK_CLOCK_HZ configCPU_CLOCK_HZ
+	/* 确保SysTick的时钟与内核时钟一致 */
+	#define portNVIC_SYSTICK_CLK_BIT	( 1UL << 2UL )
+#else
+	#define portNVIC_SYSTICK_CLK_BIT	( 0 )
+#endif
+
+#define portNVIC_SYSTICK_INT_BIT			( 1UL << 1UL )
+#define portNVIC_SYSTICK_ENABLE_BIT			( 1UL << 0UL )
+
+
+
 /*
 *************************************************************************
 *                              函数声明
@@ -27,6 +44,7 @@
 
 void vPortSVCHandler( void );
 void xPortPendSVHandler( void );
+void vPortSetupTimerInterrupt( void );
 void prvStartFirstTask( void );
 
 /*
@@ -72,6 +90,8 @@ BaseType_t xPortStartScheduler( void )
   /* 配置PendSV 和 SysTick 的中断优先级为最低 */
 	portNVIC_SYSPRI2_REG |= portNVIC_PENDSV_PRI;
 	portNVIC_SYSPRI2_REG |= portNVIC_SYSTICK_PRI;
+	
+	vPortSetupTimerInterrupt();
 	
 	/* 启动第一个任务，不再返回 */
 	prvStartFirstTask();
@@ -175,6 +195,44 @@ __asm void xPortPendSVHandler( void )
                                    当新任务的运行地址被出栈到PC寄存器后，新的任务也会被执行。*/
 	nop
 }
+
+/*
+*************************************************************************
+*                              初始化SysTick
+*************************************************************************
+*/
+void vPortSetupTimerInterrupt( void ) {
+	
+		//重装载寄存器：(1/rate)s
+		portNVIC_SYSTICK_LOAD_REG = ( configSYSTICK_CLOCK_HZ / configTICK_RATE_HZ ) - 1UL;
+	
+    /* 设置系统定时器的时钟等于内核时钟
+       使能SysTick 定时器中断
+       使能SysTick 定时器 */
+    portNVIC_SYSTICK_CTRL_REG = ( portNVIC_SYSTICK_CLK_BIT | 
+                                  portNVIC_SYSTICK_INT_BIT |
+                                  portNVIC_SYSTICK_ENABLE_BIT ); 
+}
+
+
+/*
+*************************************************************************
+*                             SysTick中断服务函数
+*************************************************************************
+*/
+void xPortSysTickHandler( void ) {
+	//关中断
+	//vPortRaiseBASEPRI();
+	
+	//更新系统时基
+	xTaskIncrementTick();
+	
+	//开中断
+	//vPortClearBASEPRIFromISR();
+}
+
+
+
 
 
 

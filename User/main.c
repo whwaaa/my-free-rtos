@@ -37,12 +37,9 @@ void Task1_Entry( void *p_arg )
 	for( ;; )
 	{
 		flag1 = 1;
-		delay( 100 );		
+		vTaskDelay( 10 );		
 		flag1 = 0;
-		delay( 100 );
-		
-		/* 任务切换，这里是手动切换 */
-    taskYIELD();
+		vTaskDelay( 10 );
 	}
 }
 
@@ -52,12 +49,9 @@ void Task2_Entry( void *p_arg )
 	for( ;; )
 	{
 		flag2 = 1;
-		delay( 100 );				
+		vTaskDelay( 5 );				
 		flag2 = 0;
-		delay( 100 );		
-		
-		/* 任务切换，这里是手动切换 */
-    taskYIELD();
+		vTaskDelay( 5 );		
 	}
 }
 
@@ -65,8 +59,14 @@ void Task2_Entry( void *p_arg )
 
 int main(void){
 	
+	initReadyList();
+	
 	createTask(&Task1TCB, Task1Stack, TASK1_STACK_SIZE, Task1_Entry);
 	createTask(&Task2TCB, Task2Stack, TASK2_STACK_SIZE, Task2_Entry);
+	
+	vListInsertEnd( ( List_t * ) &ReadyList[1], &Task1TCB.ListItem );
+	vListInsertEnd( ( List_t * ) &ReadyList[2], &Task2TCB.ListItem );
+	 
 
 	vTaskStartScheduler();
 }
