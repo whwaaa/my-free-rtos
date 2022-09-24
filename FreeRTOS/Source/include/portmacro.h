@@ -40,37 +40,53 @@ typedef unsigned long UBaseType_t;
 }
 
 
-//static portFORCE_INLINE void vPortRaiseBASEPRI( void )
-//{
-//uint32_t ulNewBASEPRI = configMAX_SYSCALL_INTERRUPT_PRIORITY;
+/* Critical section management. */
+    extern void vPortEnterCritical( void );
+    extern void vPortExitCritical( void );
 
-//	__asm
-//	{
-//		/* Set BASEPRI to the max syscall priority to effect a critical
-//		section. */
-//		msr basepri, ulNewBASEPRI
-//		dsb
-//		isb
-//	}
-//}
+    #define portDISABLE_INTERRUPTS()                  vPortRaiseBASEPRI()				//关中断 不可嵌套
+    #define portENABLE_INTERRUPTS()                   vPortClearBASEPRIFromISR()//开中断 不带保护//vPortSetBASEPRI( 0 )	
 
+    #define portSET_INTERRUPT_MASK_FROM_ISR()         ulPortRaiseBASEPRI()	//关中断 可嵌套
+    #define portCLEAR_INTERRUPT_MASK_FROM_ISR( x )    vPortSetBASEPRI( x )	//开中断 带保护
 
-//static portFORCE_INLINE void vPortClearBASEPRIFromISR( void )
-//{
-//	__asm
-//	{
-//		/* Set BASEPRI to 0 so no interrupts are masked.  This function is only
-//		used to lower the mask in an interrupt, so memory barriers are not 
-//		used. */
-//		msr basepri, #0
-//	}
-//}
+		#define portENTER_CRITICAL()                      vPortEnterCritical()
+    #define portEXIT_CRITICAL() 								 			vPortExitCritical()
+/*-----------------------------------------------------------*/
 
+//__forceinline:C++提供的强行内联函数，目的是为了提高函数的执行效率（调用函数部分用实际的函数体代码替换）
+static __forceinline void vPortRaiseBASEPRI( void ) {
+		uint32_t ulNewBASEPRI = configMAX_SYSCALL_INTERRUPT_PRIORITY;
 
+		__asm {
+				msr basepri, ulNewBASEPRI
+				dsb
+				isb 
+		}
+}
+static __forceinline uint32_t ulPortRaiseBASEPRI( void ) {
+		uint32_t ulReturn, ulNewBASEPRI = configMAX_SYSCALL_INTERRUPT_PRIORITY;
 
+		__asm{
+				mrs ulReturn, basepri
+				msr basepri, ulNewBASEPRI
+				dsb
+				isb
+		}
+		return ulReturn;
+}
 
+static __forceinline void vPortSetBASEPRI( uint32_t ulBASEPRI ){
+		__asm{
+				msr basepri, ulBASEPRI
+		}
+}
 
-
-
+static __forceinline void vPortClearBASEPRIFromISR( void )
+{
+		__asm{
+				msr basepri, # 0
+		}
+}
 
 #endif /* PORTMACRO_H */

@@ -5,6 +5,10 @@ TCB_t * volatile pxCurrentTCB = NULL;
 
 List_t ReadyList[ configMAX_PRIORITIES ];
 
+
+static volatile TickType_t xTickCount = ( TickType_t ) configINITIAL_TICK_COUNT;
+
+
 void initReadyList( void ) {
 	StackType_t i;
 	for ( i=0; i<configMAX_PRIORITIES; i++ ) 
@@ -28,6 +32,8 @@ void createTask( TCB_t * const pxTCB
 }
 							
 
+
+
 /********************************* 空闲任务 *************************************/
 TaskHandle_t TaskIdle_Handle;
 #define TASKIdle_STACK_SIZE                    20
@@ -37,6 +43,7 @@ void taskIdle( void *p_arg ) {
 	for ( ;; );
 }
 /*********************************************************************************/
+
 
 
 void vTaskSwitchContext( void ) {    
@@ -73,6 +80,9 @@ void vTaskStartScheduler( void ){
 	TaskIdleTCB.ListItem.xItemValue = portMAX_DELAY;
 
 	pxCurrentTCB = &TaskIdleTCB;
+	
+	xTickCount = ( TickType_t ) configINITIAL_TICK_COUNT;
+	
 	xPortStartScheduler();
 }
 
@@ -80,6 +90,11 @@ void vTaskStartScheduler( void ){
 void xTaskIncrementTick( void ) {
 	StackType_t i,j;
 	ListItem_t *pxItem;
+	
+	//这里用xConstTickCount变量+1是后续优化需要
+	const TickType_t xConstTickCount = xTickCount + ( TickType_t ) 1;
+	xTickCount = xConstTickCount;
+	
 	for ( i=0; i<configMAX_PRIORITIES; i++ ) {
 		pxItem = ( ListItem_t * ) listGET_HEAD_ENTRY( &ReadyList[ i ] );
 		for ( j=0; j<ReadyList[ i ].uxNumberOfItems; j++ ) {

@@ -49,7 +49,7 @@ void Task2_Entry( void *p_arg )
 	for( ;; )
 	{
 		flag2 = 1;
-		vTaskDelay( 5 );				
+		vTaskDelay( 10 );				
 		flag2 = 0;
 		vTaskDelay( 5 );		
 	}

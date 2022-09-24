@@ -4,6 +4,15 @@
 #include "freeRTOS.h"
 #include "list.h"
 
+//不带保护版
+#define taskENTER_CRITICAL()               portENTER_CRITICAL()
+#define taskEXIT_CRITICAL()                portEXIT_CRITICAL()
+//带保护版
+#define taskENTER_CRITICAL_FROM_ISR()      portSET_INTERRUPT_MASK_FROM_ISR()
+#define taskEXIT_CRITICAL_FROM_ISR( x )    portCLEAR_INTERRUPT_MASK_FROM_ISR( x )
+
+
+
 typedef void (*TaskFunction_t)( void * );
 typedef void * TaskHandle_t;
 

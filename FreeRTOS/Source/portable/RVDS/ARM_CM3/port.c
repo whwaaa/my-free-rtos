@@ -2,6 +2,7 @@
 #include "task.h"
 #include "ARMCM3.h"
 
+static UBaseType_t uxCriticalNesting = 0xaaaaaaaa;
 
 /*
 *************************************************************************
@@ -34,7 +35,9 @@
 #define portNVIC_SYSTICK_INT_BIT			( 1UL << 1UL )
 #define portNVIC_SYSTICK_ENABLE_BIT			( 1UL << 0UL )
 
-
+//临界段
+/* Masks off all bits but the VECTACTIVE bits in the ICSR register. */
+#define portVECTACTIVE_MASK                   ( 0xFFUL )
 
 /*
 *************************************************************************
@@ -92,6 +95,8 @@ BaseType_t xPortStartScheduler( void )
 	portNVIC_SYSPRI2_REG |= portNVIC_SYSTICK_PRI;
 	
 	vPortSetupTimerInterrupt();
+	
+	uxCriticalNesting = 0;
 	
 	/* 启动第一个任务，不再返回 */
 	prvStartFirstTask();
@@ -222,21 +227,40 @@ void vPortSetupTimerInterrupt( void ) {
 */
 void xPortSysTickHandler( void ) {
 	//关中断
-	//vPortRaiseBASEPRI();
+	vPortRaiseBASEPRI();
 	
 	//更新系统时基
 	xTaskIncrementTick();
 	
 	//开中断
-	//vPortClearBASEPRIFromISR();
+	vPortClearBASEPRIFromISR();
 }
 
 
 
 
 
+/*
+*************************************************************************
+*                             临界段
+*************************************************************************
+*/
+void vPortEnterCritical( void ) {
+    portDISABLE_INTERRUPTS();//关中断 不可嵌套
+    uxCriticalNesting++; 
+//    if( uxCriticalNesting == 1 ) {
+//        configASSERT( ( portNVIC_INT_CTRL_REG & portVECTACTIVE_MASK ) == 0 );
+//    }
+}
+/*-----------------------------------------------------------*/
 
-
+void vPortExitCritical( void ) {
+//    configASSERT( uxCriticalNesting );
+    uxCriticalNesting--; 
+    if( uxCriticalNesting == 0 ) {
+        portENABLE_INTERRUPTS();
+    }
+}
 
 
 
