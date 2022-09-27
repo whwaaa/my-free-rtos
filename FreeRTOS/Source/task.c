@@ -35,6 +35,8 @@ void initReadyList( void ) {
 	vListInitialise( pxDelayedTaskList );
 	vListInitialise( pxOverflowDelayedTaskList );
 	
+	vListInitialise( &xSuspendedTaskList );//???????
+	
 }
 
 
@@ -163,6 +165,13 @@ BaseType_t xTaskIncrementTick( void ) {
 			}
 		}
 	}
+	
+	#if ( configUSE_PREEMPTION == 1 )
+		if ( listCURRENT_LIST_LENGTH( &ReadyList[ uxTopReadyPriority ] ) != ( UBaseType_t ) 1U ) {
+			xSwitchRequired = pdTRUE;
+		}
+	#endif
+	
 	return xSwitchRequired;
 	
 //	StackType_t i,j;
@@ -255,7 +264,7 @@ static void prvAddNewTaskToReadyList( TCB_t * pxNewTCB ){
 
 #if ( INCLUDE_vTaskSuspend == 1 )
 BaseType_t prvTaskIsTaskSuspended( const TaskHandle_t xTask ) {
-	if ( ( List_t * ) ( &( ( ( TCB_t * ) xTask )->ListItem.pvContainer ) ) == &xSuspendedTaskList ) {
+	if ( ( List_t * ) ( ( ( ( TCB_t * ) xTask )->ListItem.pvContainer ) ) == &xSuspendedTaskList ) {
 		return pdTRUE;
 	} else {
 		return pdFALSE;
@@ -265,27 +274,30 @@ BaseType_t prvTaskIsTaskSuspended( const TaskHandle_t xTask ) {
 /*------------------------------------- 任务挂起 -------------------------------------*/
 void vTaskSuspend( TaskHandle_t xTaskToSuspend ) {
 	TCB_t * pxTCB;
-	
+	portENTER_CRITICAL();
 	//根据句柄获转换成任务TCB
 	//pxTCB = ( ( xTaskToSuspend == NULL ) ? ( TCB_t * ) pxCurrentTCB : ( TCB_t * ) ( xTaskToSuspend ) );
 	pxTCB = prvGetTCBFromHandle( xTaskToSuspend );
 	//将任务从就绪、延时链表中移除
-	if ( uxListRemove( &( pxTCB->ListItem ) ) != pdFALSE ) {
+	if ( uxListRemove( &( pxTCB->ListItem ) ) == ( UBaseType_t ) 0U ) {
 		//更新最高就绪优先级
 		portRESET_READY_PRIORITY( ( pxTCB->uxPriority ), ( uxTopReadyPriority ) );	
 	}
-	if ( pxTCB != pxCurrentTCB ) {//就绪、阻塞任务挂起
-		prvResetNextTaskUnblockTime();
-	} else {//当前任务挂起
+	//就绪、阻塞任务挂起
+	vListInsertEnd( &xSuspendedTaskList, &( pxTCB->ListItem ) );
+	prvResetNextTaskUnblockTime();//当前任务挂起
+	if ( pxTCB == pxCurrentTCB ) {
 		//切换任务
 		taskYIELD();
 	}
+	portEXIT_CRITICAL();
 }
 /*------------------------------------------------------------------------------------*/
 
 /*------------------------------------- 任务恢复 -------------------------------------*/
 void vTaskResume( TaskHandle_t xTaskToResume ) {
 	TCB_t * pxTCB;
+	portENTER_CRITICAL();
 	//恢复的任务不能可能是当前，当前任务不在挂起状态
 	if ( xTaskToResume!=NULL && xTaskToResume!=( TaskHandle_t ) pxCurrentTCB ) {
 		//确保任务是挂起状态
@@ -296,17 +308,29 @@ void vTaskResume( TaskHandle_t xTaskToResume ) {
 			//添加进就绪链表（更新最高就绪优先级）
 			vListInsertEnd( &( ReadyList[ pxTCB->uxPriority ] ), &( pxTCB->ListItem ) );
 			//检查恢复的任务优先级是否比当前高，高则执行任务切换
-			if ( pxTCB->uxPriority > pxCurrentTCB->uxPriority ) {
+			if ( pxTCB->uxPriority >= pxCurrentTCB->uxPriority ) {
 				//切换任务
 				taskYIELD();
 			}
 		}
 	}
+	portEXIT_CRITICAL();
 }
 /*------------------------------------------------------------------------------------*/
 #endif
 
+TickType_t xTaskGetTickCount( void ) {
+	TickType_t xTicks;
 
+	/* Critical section required if running on a 16 bit processor. */
+	portENTER_CRITICAL();
+	{
+		xTicks = xTickCount;
+	}
+	portEXIT_CRITICAL();
+
+	return xTicks;
+}
 
 
 

@@ -52,7 +52,7 @@ void prvStartFirstTask( void );
 
 /*
 *************************************************************************
-*                              任务栈初始化函数
+*                               任务栈初始化函数
 *************************************************************************
 */
 
@@ -257,7 +257,6 @@ void vPortEnterCritical( void ) {
 //    }
 }
 /*-----------------------------------------------------------*/
-
 void vPortExitCritical( void ) {
 //    configASSERT( uxCriticalNesting );
     uxCriticalNesting--; 
@@ -265,6 +264,7 @@ void vPortExitCritical( void ) {
         portENABLE_INTERRUPTS();
     }
 }
+
 
 
 

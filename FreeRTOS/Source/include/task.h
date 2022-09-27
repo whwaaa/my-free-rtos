@@ -42,6 +42,10 @@ void vTaskStartScheduler( void );
 BaseType_t xTaskIncrementTick( void );
 void initReadyList( void );
 void vTaskDelay( const TickType_t xTicksToDelay );
+TickType_t xTaskGetTickCount( void );
+							
+void vTaskSuspend( TaskHandle_t xTaskToSuspend );
+void vTaskResume( TaskHandle_t xTaskToResume );
 #endif
 
 
