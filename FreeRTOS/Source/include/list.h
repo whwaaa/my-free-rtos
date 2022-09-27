@@ -95,9 +95,9 @@ typedef struct xLIST
 	}																						\
 	/* 获取节点的OWNER，即TCB */                                                             \
 	( pxTCB ) = ( pxConstList )->pxIndex->pvOwner;											 \
-}
+} \
 
-#define listGET_OWNER_OF_HEAD_ENTRY( pxList )  ( (&( ( pxList )->xListEnd ))->pxNext->pvOwner )
+#define listGET_OWNER_OF_HEAD_ENTRY( pxList )  ( ( &( ( pxList )->xListEnd ) )->pxNext->pvOwner )
 
 /*
 ************************************************************************

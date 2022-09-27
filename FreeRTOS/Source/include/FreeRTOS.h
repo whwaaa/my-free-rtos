@@ -7,6 +7,7 @@
 
 #include "FreeRTOSConfig.h"
 #include "portable.h"
+#include "projdefs.h"
 
 #include "list.h"
 #include "task.h"

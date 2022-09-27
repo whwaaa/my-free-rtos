@@ -39,19 +39,25 @@ typedef unsigned long UBaseType_t;
 	__isb( portSY_FULL_READ_WRITE );											\
 }
 
+#define portRECORD_READY_PRIORITY( uxPriority, uxReadyPriorities )  uxReadyPriorities |= ( 1UL << uxPriority )
+#define portRESET_READY_PRIORITY( uxPriority, uxReadyPriorities )  uxReadyPriorities &= ~( 1UL << uxPriority )
+
+#define portGET_HIGHEST_PRIORITY( uxTopPriority, uxReadyPriorities )   \
+	uxTopPriority = ( 31UL - ( uint32_t ) __clz( ( uxReadyPriorities ) ) )
+
 
 /* Critical section management. */
-    extern void vPortEnterCritical( void );
-    extern void vPortExitCritical( void );
+extern void vPortEnterCritical( void );
+extern void vPortExitCritical( void );
 
-    #define portDISABLE_INTERRUPTS()                  vPortRaiseBASEPRI()				//关中断 不可嵌套
-    #define portENABLE_INTERRUPTS()                   vPortClearBASEPRIFromISR()//开中断 不带保护//vPortSetBASEPRI( 0 )	
+#define portDISABLE_INTERRUPTS()                  vPortRaiseBASEPRI()				//关中断 不可嵌套
+#define portENABLE_INTERRUPTS()                   vPortClearBASEPRIFromISR()//开中断 不带保护//vPortSetBASEPRI( 0 )	
 
-    #define portSET_INTERRUPT_MASK_FROM_ISR()         ulPortRaiseBASEPRI()	//关中断 可嵌套
-    #define portCLEAR_INTERRUPT_MASK_FROM_ISR( x )    vPortSetBASEPRI( x )	//开中断 带保护
+#define portSET_INTERRUPT_MASK_FROM_ISR()         ulPortRaiseBASEPRI()	//关中断 可嵌套
+#define portCLEAR_INTERRUPT_MASK_FROM_ISR( x )    vPortSetBASEPRI( x )	//开中断 带保护
 
-		#define portENTER_CRITICAL()                      vPortEnterCritical()
-    #define portEXIT_CRITICAL() 								 			vPortExitCritical()
+#define portENTER_CRITICAL()                      vPortEnterCritical()
+#define portEXIT_CRITICAL() 								 			vPortExitCritical()
 /*-----------------------------------------------------------*/
 
 //__forceinline:C++提供的强行内联函数，目的是为了提高函数的执行效率（调用函数部分用实际的函数体代码替换）

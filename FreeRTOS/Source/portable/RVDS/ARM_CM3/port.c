@@ -230,7 +230,11 @@ void xPortSysTickHandler( void ) {
 	vPortRaiseBASEPRI();
 	
 	//更新系统时基
-	xTaskIncrementTick();
+	if( xTaskIncrementTick() != pdFALSE ) {
+		//开中断
+		//portNVIC_INT_CTRL_REG |= portNVIC_SYSTICK_INT_BIT;
+		portYIELD();
+	}
 	
 	//开中断
 	vPortClearBASEPRIFromISR();

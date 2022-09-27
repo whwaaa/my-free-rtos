@@ -12,17 +12,51 @@
 *************************************************************************
 */
 TaskHandle_t Task1_Handle;
-#define TASK1_STACK_SIZE                    20
+#define TASK1_STACK_SIZE                    128
 StackType_t Task1Stack[TASK1_STACK_SIZE];
 TCB_t Task1TCB;
 
 TaskHandle_t Task2_Handle;
-#define TASK2_STACK_SIZE                    20
+#define TASK2_STACK_SIZE                    128
 StackType_t Task2Stack[TASK2_STACK_SIZE];
 TCB_t Task2TCB;
 
-StackType_t flag1;
-StackType_t flag2;
+TaskHandle_t Task3_Handle;
+#define TASK3_STACK_SIZE                    128
+StackType_t Task3Stack[TASK3_STACK_SIZE];
+TCB_t Task3TCB;
+
+portCHAR flag1;
+portCHAR flag2;
+portCHAR flag3;
+
+
+/*
+*************************************************************************
+*                               º¯ÊýÉùÃ÷ 
+*************************************************************************
+*/
+void delay (uint32_t count);
+void Task1_Entry( void *p_arg );
+void Task2_Entry( void *p_arg );
+void Task3_Entry( void *p_arg );
+
+
+/*
+************************************************************************
+*                                mainº¯Êý
+************************************************************************
+*/
+int main(void){
+	     
+	createTask( &Task1TCB, Task1Stack, TASK1_STACK_SIZE, Task1_Entry, ( UBaseType_t ) 2 );
+	createTask( &Task2TCB, Task2Stack, TASK2_STACK_SIZE, Task2_Entry, ( UBaseType_t ) 2 );
+	createTask( &Task3TCB, Task3Stack, TASK3_STACK_SIZE, Task3_Entry, ( UBaseType_t ) 3 );
+
+	vTaskStartScheduler();
+}
+
+
 
 
 void delay( StackType_t count ) {
@@ -37,9 +71,11 @@ void Task1_Entry( void *p_arg )
 	for( ;; )
 	{
 		flag1 = 1;
-		vTaskDelay( 10 );		
+		delay( 100 );		
+		//vTaskDelay( 10 );		
 		flag1 = 0;
-		vTaskDelay( 10 );
+		delay( 100 );
+		//vTaskDelay( 10 );
 	}
 }
 
@@ -49,33 +85,25 @@ void Task2_Entry( void *p_arg )
 	for( ;; )
 	{
 		flag2 = 1;
-		vTaskDelay( 10 );				
+		delay( 100 );
+		//vTaskDelay( 10 );				
 		flag2 = 0;
-		vTaskDelay( 5 );		
+		delay( 100 );
+		//vTaskDelay( 5 );		
 	}
 }
 
-
-
-int main(void){
-	
-	initReadyList();
-	
-	createTask(&Task1TCB, Task1Stack, TASK1_STACK_SIZE, Task1_Entry);
-	createTask(&Task2TCB, Task2Stack, TASK2_STACK_SIZE, Task2_Entry);
-	
-	vListInsertEnd( ( List_t * ) &ReadyList[1], &Task1TCB.ListItem );
-	vListInsertEnd( ( List_t * ) &ReadyList[2], &Task2TCB.ListItem );
-	 
-
-	vTaskStartScheduler();
+ 
+void Task3_Entry( void *p_arg )
+{
+	for( ;; )
+	{
+		flag3 = 1;
+    vTaskDelay( 1 );	
+		flag3 = 0;
+    vTaskDelay( 1 );
+	}
 }
-
-
-
-
-
-
 
 
 
