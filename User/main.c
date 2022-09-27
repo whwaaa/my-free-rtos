@@ -40,6 +40,10 @@ void delay (uint32_t count);
 void Task1_Entry( void *p_arg );
 void Task2_Entry( void *p_arg );
 void Task3_Entry( void *p_arg );
+TaskHandle_t Task1;
+TaskHandle_t Task2;
+TaskHandle_t Task3;
+
 
 
 /*
@@ -49,9 +53,9 @@ void Task3_Entry( void *p_arg );
 */
 int main(void){
 	     
-	createTask( &Task1TCB, Task1Stack, TASK1_STACK_SIZE, Task1_Entry, ( UBaseType_t ) 2 );
-	createTask( &Task2TCB, Task2Stack, TASK2_STACK_SIZE, Task2_Entry, ( UBaseType_t ) 2 );
-	createTask( &Task3TCB, Task3Stack, TASK3_STACK_SIZE, Task3_Entry, ( UBaseType_t ) 3 );
+	createTask( &Task1TCB, Task1Stack, TASK1_STACK_SIZE, Task1_Entry, ( UBaseType_t ) 2 , &Task1);
+	createTask( &Task2TCB, Task2Stack, TASK2_STACK_SIZE, Task2_Entry, ( UBaseType_t ) 2 , &Task2);
+	createTask( &Task3TCB, Task3Stack, TASK3_STACK_SIZE, Task3_Entry, ( UBaseType_t ) 3 , &Task3);
 
 	vTaskStartScheduler();
 }

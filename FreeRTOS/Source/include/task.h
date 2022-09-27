@@ -34,7 +34,8 @@ void createTask( TCB_t * const pxTCB
 							, StackType_t * const StackBottom 
 							, StackType_t stackSize
 							, TaskFunction_t pFun
-							, UBaseType_t uxPriority);
+							, UBaseType_t uxPriority
+							, TaskHandle_t * xTaskHandle);
 							
 							
 void vTaskStartScheduler( void );

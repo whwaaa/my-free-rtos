@@ -16,5 +16,8 @@
 #define configKERNEL_INTERRUPT_PRIORITY 		255   /* 高四位有效，即等于0xff，或者是15 */
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY 	191   /* 高四位有效，即等于0xb0，或者是11 */
 
+//任务挂起
+#define INCLUDE_vTaskSuspend	1
+
 
 #endif /* FREERTOS_CONFIG_H */
