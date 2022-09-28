@@ -1,0 +1,39 @@
+任务挂起vTaskSuspend( TaskHandle_t xTaskToSuspend )：
+
+就绪态->	就绪链表中移除，添加进挂起链表
+运行态->	就绪链表中移除，添加进挂起链表
+			切换任务
+阻塞态->	延时链表中移除，添加进挂起链表
+			更新最新延时到期变量 NextTaskUnblockTime
+			
+新增TCB任务句柄 TaskHandle_t ，在任务初始化完成后，指向任务TCB
+			
+->	
+	挂起时传递任务句柄，如果是当前运行TCB，则可判断是当前任务
+	1.就绪、延时链表中移除,添加进挂起链表
+	2.更新最新延时到期变量 NextTaskUnblockTime
+	3.更新最高就绪优先级
+	4.if(是当前任务)->切换任务
+
+
+任务重新开始vTaskResume( TaskHandle_t xTaskToResume )：
+
+挂起状态只能恢复到就绪态
+原就绪态->	从挂起链表移除，添加进就绪链表
+			检查更新最高就绪优先级
+			如果恢复的是最高优先级任务，则立即切换任务
+			
+->	
+	0.检查任务是否被挂起 BaseType_t prvTaskIsTaskSuspended( const TaskHandle_t xTask )
+		#define listIS_CONTAINED_WITHIN( pxList, pxListItem )
+	1.从挂起链表移除，添加进就绪链表（更新最高就绪优先级）
+	2.检查恢复的任务优先级是否比当前高，高则执行任务切换
+
+
+
+挂起所有任务：
+新增变量，每挂起一次任务，变量增加1，调度器不能工作
+解除一次，变量减1，为0时，不能再减，调度器可正常工作
+vTaskSuspendAll()
+vTaskResumeAll()
+static volatile UBaseType_t uxSchedulerSuspended	= ( UBaseType_t ) pdFALSE;

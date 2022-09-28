@@ -31,10 +31,16 @@ TaskHandle_t Task4_Handle;
 StackType_t Task4Stack[TASK4_STACK_SIZE];
 TCB_t Task4TCB;
 
+TaskHandle_t Task5_Handle;
+#define TASK5_STACK_SIZE                    128
+StackType_t Task5Stack[TASK5_STACK_SIZE];
+TCB_t Task5TCB;
+
 portCHAR flag1;
 portCHAR flag2;
 portCHAR flag3;
 portCHAR flag4;
+portCHAR flag5;
 
 
 /*
@@ -47,10 +53,12 @@ void Task1_Entry( void *p_arg );
 void Task2_Entry( void *p_arg );
 void Task3_Entry( void *p_arg );
 void Task4_Entry( void *p_arg );
+void Task5_Entry( void *p_arg );
 TaskHandle_t Task1;
 TaskHandle_t Task2;
 TaskHandle_t Task3;
 TaskHandle_t Task4;
+TaskHandle_t Task5;
 
 
 
@@ -65,8 +73,11 @@ int main(void) {
     createTask( &Task2TCB, Task2Stack, TASK2_STACK_SIZE, Task2_Entry, ( UBaseType_t ) 2, &Task2);
     createTask( &Task3TCB, Task3Stack, TASK3_STACK_SIZE, Task3_Entry, ( UBaseType_t ) 2, &Task3);
 		createTask( &Task4TCB, Task4Stack, TASK4_STACK_SIZE, Task4_Entry, ( UBaseType_t ) 2, &Task4);
+		createTask( &Task5TCB, Task5Stack, TASK5_STACK_SIZE, Task5_Entry, ( UBaseType_t ) 3, &Task5);
 	
     vTaskStartScheduler();
+	
+	
 }
 
 
@@ -81,7 +92,6 @@ void delay( StackType_t count ) {
 /* 任务1 */
 void Task1_Entry( void *p_arg )
 {
-		static TickType_t xTicks;
     for( ;; )
     {
 				flag1 = ~flag1;
@@ -108,8 +118,10 @@ void Task3_Entry( void *p_arg )
 //        vTaskDelay( 1 );
 //        flag3 = 0;
 //        vTaskDelay( 1 );
+			taskENTER_CRITICAL();
 			vTaskResume( Task4 );
 			vTaskSuspend( NULL );
+			portEXIT_CRITICAL();
     }
 }
 void Task4_Entry( void *p_arg )
@@ -120,12 +132,23 @@ void Task4_Entry( void *p_arg )
 //        vTaskDelay( 1 );
 //        flag4 = 0;
 //        vTaskDelay( 1 );
+			taskENTER_CRITICAL();
 			flag4 = ~flag4;
 			vTaskResume( Task3 );
 			vTaskSuspend( NULL );
+			portEXIT_CRITICAL();
     }
 }
 
+/* 任务5 */
+void Task5_Entry( void *p_arg )
+{
+    for( ;; )
+    {
+				flag5 = ~flag5;
+				vTaskDelay( 10 );
+    }
+}
 
 
 

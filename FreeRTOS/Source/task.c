@@ -4,6 +4,9 @@
 /********************************* 函数声明 *************************************/
 static void prvAddNewTaskToReadyList( TCB_t * pxNewTCB );
 static void prvResetNextTaskUnblockTime( void );
+#if ( INCLUDE_vTaskDelete == 1 )
+static void prvCheckTasksWaitingTermination( void );
+#endif
 /********************************************************************************/
 static void prvResetNextTaskUnblockTime( void );
 
@@ -23,6 +26,10 @@ static UBaseType_t uxTaskNumber 					= ( UBaseType_t ) 0U;
 static volatile TickType_t xNextTaskUnblockTime = ( TickType_t ) 0U;
 static volatile UBaseType_t uxCurrentNumberOfTasks 	= ( UBaseType_t ) 0U;
 
+#if ( INCLUDE_vTaskDelete == 1 )
+static List_t xTasksWaitingTermination;//待终止链表
+static volatile UBaseType_t uxDeletedTasksWaitingCleanUp = ( UBaseType_t ) 0U;
+#endif
 
 void initReadyList( void ) {
 	StackType_t i;
@@ -51,9 +58,10 @@ void createTask( TCB_t * const pxTCB
 	StackTop = (StackType_t *)( StackBottom + stackSize );
 	StackTop = (StackType_t *)( ( StackType_t ) StackTop & ( ~((StackType_t)(7U)) ) );
 							
-	vListInitialiseItem( ( ListItem_t * ) ( &( pxTCB->ListItem ) ) );
+	//vListInitialiseItem( ( ListItem_t * ) ( &( pxTCB->ListItem ) ) );
 								
 	pxTCB->ListItem.pvOwner = ( TCB_t * ) pxTCB;
+	pxTCB->stackBottom = StackBottom;
 								
 	if ( uxPriority >= ( UBaseType_t ) configMAX_PRIORITIES ) {
 		uxPriority = configMAX_PRIORITIES;
@@ -77,8 +85,19 @@ TaskHandle_t TaskIdle_Handle;
 #define TASKIdle_STACK_SIZE                    20
 StackType_t TaskIdleStack[TASKIdle_STACK_SIZE];
 TCB_t TaskIdleTCB;
+
 void taskIdle( void *p_arg ) {
+	#if ( INCLUDE_vTaskDelete == 1 )
+	//1.检查是否有待终止任务，有则释放资源
+	prvCheckTasksWaitingTermination();
+	#endif
+	
+	//2.检查同等级下有没有其他任务就绪，有直接切换
+	if ( listCURRENT_LIST_LENGTH( &ReadyList[ tskIDLE_PRIORITY ] ) > ( UBaseType_t ) 1U ) {
+		taskYIELD();//切换其他任务
+	}
 	for ( ;; );
+	
 }
 /*********************************************************************************/
 
@@ -130,6 +149,8 @@ BaseType_t xTaskIncrementTick( void ) {
 	TickType_t itemValue;
 	BaseType_t xSwitchRequired = pdFALSE;
 	
+	UBaseType_t uxTopPriority;
+	
 	//系统时基自增
 	const TickType_t xConstTickCount = xTickCount + ( TickType_t ) 1;
 	xTickCount = xConstTickCount;
@@ -167,7 +188,8 @@ BaseType_t xTaskIncrementTick( void ) {
 	}
 	
 	#if ( configUSE_PREEMPTION == 1 )
-		if ( listCURRENT_LIST_LENGTH( &ReadyList[ uxTopReadyPriority ] ) != ( UBaseType_t ) 1U ) {
+		portGET_HIGHEST_PRIORITY( uxTopPriority, uxTopReadyPriority );
+		if ( listCURRENT_LIST_LENGTH( &ReadyList[ uxTopPriority ] ) > ( UBaseType_t ) 1U ) {
 			xSwitchRequired = pdTRUE;
 		}
 	#endif
@@ -270,7 +292,6 @@ BaseType_t prvTaskIsTaskSuspended( const TaskHandle_t xTask ) {
 		return pdFALSE;
 	}
 }
-
 /*------------------------------------- 任务挂起 -------------------------------------*/
 void vTaskSuspend( TaskHandle_t xTaskToSuspend ) {
 	TCB_t * pxTCB;
@@ -283,9 +304,10 @@ void vTaskSuspend( TaskHandle_t xTaskToSuspend ) {
 		//更新最高就绪优先级
 		portRESET_READY_PRIORITY( ( pxTCB->uxPriority ), ( uxTopReadyPriority ) );	
 	}
+	//更新最新任务延时到期时间
+	prvResetNextTaskUnblockTime();
 	//就绪、阻塞任务挂起
 	vListInsertEnd( &xSuspendedTaskList, &( pxTCB->ListItem ) );
-	prvResetNextTaskUnblockTime();//当前任务挂起
 	if ( pxTCB == pxCurrentTCB ) {
 		//切换任务
 		taskYIELD();
@@ -319,6 +341,41 @@ void vTaskResume( TaskHandle_t xTaskToResume ) {
 /*------------------------------------------------------------------------------------*/
 #endif
 
+#if ( INCLUDE_vTaskDelete == 1 )
+/*------------------------------------- 任务删除 -------------------------------------*/
+void vTaskDelete( TaskHandle_t xTaskToDelete ) {
+	TCB_t * pxTCB;
+	
+	
+	portENTER_CRITICAL();
+	
+	pxTCB = prvGetTCBFromHandle( xTaskToDelete );
+
+	
+	portEXIT_CRITICAL();
+}	
+
+static void prvCheckTasksWaitingTermination( void ) {
+	BaseType_t xListIsEmpty;
+	TCB_t * pxTCB;
+	
+	portENTER_CRITICAL();
+	
+	if ( uxDeletedTasksWaitingCleanUp > ( UBaseType_t ) 0U ) {
+		//检查待终止链表中的任务
+		xListIsEmpty = listLIST_IS_EMPTY( &xTasksWaitingTermination );
+	}
+	
+	if ( xListIsEmpty == pdFALSE ) {
+		pxTCB = listGET_OWNER_OF_HEAD_ENTRY( &xTasksWaitingTermination );
+		//释放任务堆栈
+
+		//释放TCB
+	}	
+	portEXIT_CRITICAL();
+}
+/*------------------------------------------------------------------------------------*/
+#endif
 TickType_t xTaskGetTickCount( void ) {
 	TickType_t xTicks;
 

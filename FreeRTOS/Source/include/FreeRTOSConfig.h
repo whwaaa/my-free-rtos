@@ -31,4 +31,6 @@
 */
 #define configUSE_PREEMPTION 1
 
+#define INCLUDE_vTaskDelete 0
+
 #endif /* FREERTOS_CONFIG_H */

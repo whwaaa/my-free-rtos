@@ -7,3 +7,4 @@
 !Project/*.uvprojx
 !User/**
 !.gitignore
+!Project/Analysis/**

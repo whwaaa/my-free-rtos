@@ -20,6 +20,7 @@ void xPortSysTickHandler( void );
 
 typedef struct {
 	StackType_t* stackTop;
+	StackType_t* stackBottom;
 	ListItem_t ListItem;
 	TickType_t xTicksToDelay;
 	UBaseType_t uxPriority;

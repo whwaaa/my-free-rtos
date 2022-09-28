@@ -4,6 +4,7 @@
 #ifndef configINITIAL_TICK_COUNT
     #define configINITIAL_TICK_COUNT    0
 #endif
+#include <stdlib.h>
 
 #include "FreeRTOSConfig.h"
 #include "portable.h"
