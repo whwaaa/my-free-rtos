@@ -25,6 +25,11 @@ static volatile UBaseType_t uxTopReadyPriority = ( UBaseType_t ) 0U;
 static UBaseType_t uxTaskNumber 					= ( UBaseType_t ) 0U;
 static volatile TickType_t xNextTaskUnblockTime = ( TickType_t ) 0U;
 static volatile UBaseType_t uxCurrentNumberOfTasks 	= ( UBaseType_t ) 0U;
+static volatile BaseType_t uxSchedulerSuspended = pdFALSE;//所有任务被挂起
+static volatile BaseType_t uxPendedTicks = ( BaseType_t ) 0U;//延迟时基
+static volatile BaseType_t xYieldPending = pdFALSE;//有带调度任务
+
+
 
 #if ( INCLUDE_vTaskDelete == 1 )
 static List_t xTasksWaitingTermination;//待终止链表
@@ -125,9 +130,19 @@ void taskIdle( void *p_arg ) {
 #define prvGetTCBFromHandle( pxHandle ) \
 ( ( ( pxHandle ) == NULL ) ? ( TCB_t * ) pxCurrentTCB : ( TCB_t * ) ( pxHandle ) ) \
 
-void vTaskSwitchContext( void ) {   
+#define taskRESET_READY_PRIORITY( uxPriority ) \
+if( listLIST_IS_EMPTY( &ReadyList[ uxPriority ] ) != pdFALSE ) { \
+	portRESET_READY_PRIORITY( uxPriority, uxTopReadyPriority ); \
+} \
 
-	taskSELECT_HIGHEST_PRIORITY_TASK();
+
+void vTaskSwitchContext( void ) {   
+	if( uxSchedulerSuspended != pdFALSE ) {
+			xYieldPending = pdFALSE;
+			taskSELECT_HIGHEST_PRIORITY_TASK();
+	} else {
+			xYieldPending = pdTRUE;
+	}
 }	
 
 			
@@ -151,66 +166,66 @@ BaseType_t xTaskIncrementTick( void ) {
 	
 	UBaseType_t uxTopPriority;
 	
-	//系统时基自增
-	const TickType_t xConstTickCount = xTickCount + ( TickType_t ) 1;
-	xTickCount = xConstTickCount;
-	//时基溢出
-	if( xConstTickCount == ( UBaseType_t ) 0U ) {
-		//1.交换溢出延时链表和延时链表指针，2.更新最新任务到期时间
-		taskSWITCH_DELAYED_LISTS();
-	}
-	
-	//有任务到期
-	if ( xConstTickCount >= xNextTaskUnblockTime ) {
-		for ( ;; ) {
-			//取出延时链表的第一个任务，添加时是根据延时时间进行排序，取出第一个一定是最新到期的任务
-			pxTCB = ( ( TCB_t * ) listGET_OWNER_OF_HEAD_ENTRY( pxDelayedTaskList ) );
-			itemValue = listGET_ITEM_VALUE_OF_HEAD_ENTRY( pxDelayedTaskList );
-			//判断所有延时到期的任务都已经被移除
-			if ( xConstTickCount < itemValue ) {
-				//更新最新任务的到期时间
-				xNextTaskUnblockTime = itemValue;
-				break;
-			}
-			
-			//将TCB从延时链表中移除
-			uxListRemove( &( pxTCB->ListItem ) );
-			
-			//添加进就绪链表
-			prvAddTaskToReadyList( pxTCB );
-			//vListInsertEnd( ReadyList, &( pxTCB->ListItem ) );
-			
-			//判断是否切换任务
-			if ( pxTCB->uxPriority >= pxCurrentTCB->uxPriority ) {
-				xSwitchRequired = pdTRUE;
+	if ( uxSchedulerSuspended != pdFALSE ) {
+		
+		//系统时基自增
+		const TickType_t xConstTickCount = xTickCount + ( TickType_t ) 1;
+		xTickCount = xConstTickCount;
+		//时基溢出
+		if( xConstTickCount == ( UBaseType_t ) 0U ) {
+			//1.交换溢出延时链表和延时链表指针，2.更新最新任务到期时间
+			taskSWITCH_DELAYED_LISTS();
+		}
+		
+		//有任务到期
+		if ( xConstTickCount >= xNextTaskUnblockTime ) {
+			for ( ;; ) {
+				//取出延时链表的第一个任务，添加时是根据延时时间进行排序，取出第一个一定是最新到期的任务
+				pxTCB = ( ( TCB_t * ) listGET_OWNER_OF_HEAD_ENTRY( pxDelayedTaskList ) );
+				itemValue = listGET_ITEM_VALUE_OF_HEAD_ENTRY( pxDelayedTaskList );
+				//判断所有延时到期的任务都已经被移除
+				if ( xConstTickCount < itemValue ) {
+					//更新最新任务的到期时间
+					xNextTaskUnblockTime = itemValue;
+					break;
+				}
+				
+				//将TCB从延时链表中移除
+				uxListRemove( &( pxTCB->ListItem ) );
+				
+				//添加进就绪链表
+				prvAddTaskToReadyList( pxTCB );
+				//vListInsertEnd( ReadyList, &( pxTCB->ListItem ) );
+				
+				//判断是否切换任务
+				if ( pxTCB->uxPriority >= pxCurrentTCB->uxPriority ) {
+					xSwitchRequired = pdTRUE;
+				}
 			}
 		}
+		
+		#if ( configUSE_PREEMPTION == 1 )
+			portGET_HIGHEST_PRIORITY( uxTopPriority, uxTopReadyPriority );
+			if ( listCURRENT_LIST_LENGTH( &ReadyList[ uxTopPriority ] ) > ( UBaseType_t ) 1U ) {
+				xSwitchRequired = pdTRUE;
+			}
+		#endif
+	} else {
+		
+		uxPendedTicks++;
 	}
 	
 	#if ( configUSE_PREEMPTION == 1 )
-		portGET_HIGHEST_PRIORITY( uxTopPriority, uxTopReadyPriority );
-		if ( listCURRENT_LIST_LENGTH( &ReadyList[ uxTopPriority ] ) > ( UBaseType_t ) 1U ) {
+	{
+		if( xYieldPending != pdFALSE )
+		{
 			xSwitchRequired = pdTRUE;
 		}
-	#endif
+	}
+	#endif /* configUSE_PREEMPTION */
+	
 	
 	return xSwitchRequired;
-	
-//	StackType_t i,j;
-//	ListItem_t *pxItem;
-//	
-//	const TickType_t xConstTickCount = xTickCount + ( TickType_t ) 1;
-//	xTickCount = xConstTickCount;
-//	
-//	for ( i=0; i<configMAX_PRIORITIES; i++ ) {
-//		pxItem = ( ListItem_t * ) listGET_HEAD_ENTRY( &ReadyList[ i ] );
-//		for ( j=0; j<ReadyList[ i ].uxNumberOfItems; j++ ) {
-//			if ( ( ( TCB_t * )pxItem->pvOwner )->xTicksToDelay > 0 )
-//				( ( TCB_t * )pxItem->pvOwner )->xTicksToDelay--;
-//			pxItem = ( ListItem_t * ) pxItem->pxNext;
-//		}
-//	}
-//	taskYIELD();
 }
 
 static void prvAddCurrentTaskToDelayedList( TickType_t xTicksToWait ) {
@@ -315,7 +330,6 @@ void vTaskSuspend( TaskHandle_t xTaskToSuspend ) {
 	portEXIT_CRITICAL();
 }
 /*------------------------------------------------------------------------------------*/
-
 /*------------------------------------- 任务恢复 -------------------------------------*/
 void vTaskResume( TaskHandle_t xTaskToResume ) {
 	TCB_t * pxTCB;
@@ -337,6 +351,42 @@ void vTaskResume( TaskHandle_t xTaskToResume ) {
 		}
 	}
 	portEXIT_CRITICAL();
+}
+/*----------------------------------- 挂起所有任务 -----------------------------------*/
+/*------------------------------------------------------------------------------------*/
+void vTaskSuspendAll( void ) {
+	++uxSchedulerSuspended;
+}
+/*----------------------------------- 恢复所有任务 -----------------------------------*/
+BaseType_t xTaskResumeAll( void ) {
+	TCB_t * pxTCB;
+	uxSchedulerSuspended--;
+	UBaseType_t uxPendedCounts;
+	BaseType_t xAlreadyYielded = pdFALSE;
+	
+	if( uxSchedulerSuspended == ( BaseType_t ) 0U ) {
+			while( listCURRENT_LIST_LENGTH( &xSuspendedTaskList ) > ( BaseType_t ) 0U ) {
+					pxTCB = listGET_OWNER_OF_HEAD_ENTRY( &xSuspendedTaskList );
+					uxListRemove( ( ListItem_t * ) &( pxTCB->ListItem ) );
+					prvAddTaskToReadyList( pxTCB );
+					if( pxTCB->uxPriority >= pxCurrentTCB->uxPriority ) {
+							xYieldPending = pdTRUE;
+					}
+			}
+			uxPendedCounts = uxPendedTicks;
+			while( uxPendedCounts > ( UBaseType_t ) 0U ){
+					if( xTaskIncrementTick() != pdFALSE ) {
+							xYieldPending = pdTRUE;
+					}
+					--uxPendedCounts;
+			}
+			uxPendedTicks = ( UBaseType_t ) 0U;
+			
+			if( xYieldPending != pdFALSE ) {
+          taskYIELD();
+			}
+	}
+	return xAlreadyYielded;
 }
 /*------------------------------------------------------------------------------------*/
 #endif
